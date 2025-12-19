@@ -77,19 +77,18 @@ with tab_student:
     with st.form("order_form"):
         st.write("#### Menu")
         c1, c2 = st.columns(2)
-        burger_qty = c1.number_input("Blue Special Burger", 0, 5, 0)
-        fries_qty = c2.number_input("Peri Peri Fries", 0, 5, 0)
+        
+        # KEY CHANGE: Added 'key' to these inputs to control them via session_state
+        burger_qty = c1.number_input("Blue Special Burger", min_value=0, max_value=5, value=0, key='burger_input')
+        fries_qty = c2.number_input("Peri Peri Fries", min_value=0, max_value=5, value=0, key='fries_input')
         
         total_items_in_cart = burger_qty + fries_qty
         
-        # THE KILL SWITCH: Disable button if status is CRITICAL
-        # Note: Streamlit form buttons can't be strictly 'disabled' via simple props, 
-        # so we handle the logic inside the submit action.
         submit = st.form_submit_button("Confirm Order 💳")
         
         if submit:
             if not accepting_orders:
-                st.error("🚫 Orders are currently paused due to high wait times. Please try again in 10 minutes.")
+                st.error("🚫 Orders are currently paused due to high wait times. Please try again later.")
             elif total_items_in_cart == 0:
                 st.warning("Please add at least one item.")
             else:
@@ -104,6 +103,11 @@ with tab_student:
                 st.session_state.orders.append(new_order)
                 st.session_state.order_counter += 1
                 st.success(f"Order #{new_order['id']} Placed! Estimated wait: {int(wait_time)} mins.")
+                
+                # KEY CHANGE: Reset inputs to 0
+                st.session_state.burger_input = 0
+                st.session_state.fries_input = 0
+                
                 time.sleep(1)
                 st.rerun()
 
@@ -132,29 +136,47 @@ with tab_kitchen:
                 
                 # "Completing" an order reduces the queue math in Tab 1
                 if c4.button("✅ Ready", key=f"btn_{order['id']}"):
-                    # Update status (In real DB, we would update the row)
-                    # Here we just remove it for the demo logic to work cleanly
                     st.session_state.orders.remove(order)
                     st.toast(f"Order #{order['id']} marked ready!")
                     time.sleep(0.5)
                     st.rerun()
 
-# --- DEBUG SECTION (Optional: To test the limits quickly) ---
+# --- DEBUG SECTION (Simulating Traffic) ---
 with st.sidebar:
     st.write("### 🛠️ Developer Tools")
-    st.write("Use this to simulate a rush.")
-    if st.button("Add 50 Fake Burgers (Simulate Rush)"):
+    st.write("Use this to simulate crowd levels.")
+    
+    # BUTTON 1: Warning Level
+    if st.button("🟡 Simulate High Traffic (Warning)"):
+        # Add 20 items (approx 20 mins wait) -> Triggers Yellow Warning (>15 mins)
+        for i in range(4):
+            fake_order = {
+                "id": st.session_state.order_counter + i,
+                "items": "Simulated Busy Crowd",
+                "item_count": 5, 
+                "time": datetime.now().strftime("%H:%M"),
+                "status": "Pending"
+            }
+            st.session_state.orders.append(fake_order)
+        st.session_state.order_counter += 4
+        st.rerun()
+
+    # BUTTON 2: Critical Level
+    if st.button("🔴 Simulate Rush Hour (Blocked)"):
+        # Add 50 items (approx 50 mins wait) -> Triggers Red Block (>30 mins)
         for i in range(10):
             fake_order = {
                 "id": st.session_state.order_counter + i,
-                "items": "Simulated Bulk Order",
-                "item_count": 5, # 5 items per fake order
+                "items": "Simulated Bulk Rush",
+                "item_count": 5,
                 "time": datetime.now().strftime("%H:%M"),
                 "status": "Pending"
             }
             st.session_state.orders.append(fake_order)
         st.session_state.order_counter += 10
         st.rerun()
+    
+    st.divider()
     
     if st.button("Clear All Orders"):
         st.session_state.orders = []
