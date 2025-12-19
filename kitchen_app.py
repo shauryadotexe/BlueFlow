@@ -18,7 +18,6 @@ def load_orders():
 
 def complete_order(order_id):
     orders = load_orders()
-    # Filter out the completed order
     updated_orders = [o for o in orders if o['id'] != order_id]
     with open(DB_FILE, "w") as f:
         json.dump(updated_orders, f, indent=4)
@@ -27,11 +26,7 @@ def complete_order(order_id):
 st.set_page_config(page_title="BlueFlow Kitchen", layout="wide")
 
 st.title("👨‍🍳 Kitchen Display System (KDS)")
-st.info("Mark orders as 'Ready' to unblock the Student App.")
-
-# Auto-refresh mechanism (Simple loop trick for prototype)
-if st.button("🔄 Refresh Feed"):
-    st.rerun()
+st.info("Live Feed: Updates every 3 seconds...")
 
 st.divider()
 
@@ -39,20 +34,29 @@ st.divider()
 orders = load_orders()
 pending_orders = [o for o in orders if o['status'] == 'Pending']
 
-if not pending_orders:
-    st.success("All caught up! No pending orders.")
-else:
-    # Display cards
-    for order in pending_orders:
-        with st.container(border=True):
-            c1, c2, c3, c4 = st.columns([1, 4, 2, 2])
-            c1.markdown(f"### #{str(order['id'])[-4:]}") # Show last 4 digits of ID
-            c2.markdown(f"**{order['items']}**")
-            c3.write(f"🕒 {order['time']}")
-            
-            # Button Logic
-            if c4.button("✅ READY", key=f"btn_{order['id']}"):
-                complete_order(order['id'])
-                st.toast(f"Order #{str(order['id'])[-4:]} Completed!")
-                time.sleep(0.5)
-                st.rerun()
+# 1. EMPTY CONTAINER FOR CONTENT
+# We use a container so we can overwrite it if needed, though reruns handle this mostly.
+placeholder = st.empty()
+
+with placeholder.container():
+    if not pending_orders:
+        st.success("All caught up! No pending orders.")
+    else:
+        for order in pending_orders:
+            with st.container(border=True):
+                c1, c2, c3, c4 = st.columns([1, 4, 2, 2])
+                c1.markdown(f"### #{str(order['id'])[-4:]}")
+                c2.markdown(f"**{order['items']}**")
+                c3.write(f"🕒 {order['time']}")
+                
+                # Button Logic
+                if c4.button("✅ READY", key=f"btn_{order['id']}"):
+                    complete_order(order['id'])
+                    st.toast(f"Order #{str(order['id'])[-4:]} Completed!")
+                    time.sleep(0.5)
+                    st.rerun()
+
+# 2. THE AUTO-REFRESH "HACK"
+# This simple line makes the script wait 3 seconds, then restart from the top.
+time.sleep(3) 
+st.rerun()
